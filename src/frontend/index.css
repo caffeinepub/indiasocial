@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Font Faces ─── */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/assets/fonts/PlusJakartaSans.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Fraunces";
+  src: url("/assets/fonts/Fraunces.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    /* ── Radius ── */
+    --radius: 0.75rem;
+
+    /* ── IndiaSocial Tricolor Palette (OKLCH raw L C H) ── */
+    /* Saffron: #FF9933 */
+    --saffron: 0.73 0.19 55;
+    /* Dark Saffron */
+    --saffron-dark: 0.60 0.19 50;
+    /* Green: #138808 */
+    --india-green: 0.55 0.18 145;
+    /* Dark Green */
+    --india-green-dark: 0.42 0.17 145;
+    /* Navy Blue (Ashoka Chakra): #000080 */
+    --navy: 0.28 0.16 265;
+    /* Navy light */
+    --navy-light: 0.40 0.18 265;
+
+    /* ── Semantic Tokens ── */
+    --background: 0.99 0 0;
+    --foreground: 0.15 0.01 265;
+    --card: 1 0 0;
+    --card-foreground: 0.15 0.01 265;
+    --popover: 1 0 0;
+    --popover-foreground: 0.15 0.01 265;
+
+    /* Primary = Saffron */
+    --primary: 0.73 0.19 55;
+    --primary-foreground: 1 0 0;
+
+    /* Secondary = Green */
+    --secondary: 0.55 0.18 145;
+    --secondary-foreground: 1 0 0;
+
+    --muted: 0.96 0.005 265;
+    --muted-foreground: 0.50 0.02 265;
+    --accent: 0.95 0.01 55;
+    --accent-foreground: 0.15 0.01 265;
+    --destructive: 0.58 0.22 25;
+    --destructive-foreground: 1 0 0;
+    --border: 0.90 0.01 265;
+    --input: 0.92 0.01 265;
+    --ring: 0.73 0.19 55;
+
+    /* Chart */
+    --chart-1: 0.73 0.19 55;
+    --chart-2: 0.55 0.18 145;
+    --chart-3: 0.28 0.16 265;
+    --chart-4: 0.85 0.12 60;
+    --chart-5: 0.65 0.15 145;
+
+    /* Sidebar */
+    --sidebar: 1 0 0;
+    --sidebar-foreground: 0.15 0.01 265;
+    --sidebar-primary: 0.73 0.19 55;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.95 0.01 55;
+    --sidebar-accent-foreground: 0.15 0.01 265;
+    --sidebar-border: 0.90 0.01 265;
+    --sidebar-ring: 0.73 0.19 55;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  /* Tricolor gradient - vertical saffron to white to green */
+  .tricolor-gradient {
+    background: linear-gradient(
+      to bottom,
+      oklch(0.73 0.19 55),
+      oklch(0.90 0.03 55),
+      white 40%,
+      white 60%,
+      oklch(0.88 0.06 145),
+      oklch(0.55 0.18 145)
+    );
+  }
+
+  /* Tricolor horizontal */
+  .tricolor-horizontal {
+    background: linear-gradient(
+      to right,
+      oklch(0.73 0.19 55) 0%,
+      oklch(0.73 0.19 55) 33.3%,
+      white 33.3%,
+      white 66.6%,
+      oklch(0.55 0.18 145) 66.6%,
+      oklch(0.55 0.18 145) 100%
+    );
+  }
+
+  /* Story ring gradient */
+  .story-ring-saffron {
+    background: linear-gradient(135deg, oklch(0.73 0.19 55), oklch(0.85 0.15 40));
+  }
+
+  .story-ring-green {
+    background: linear-gradient(135deg, oklch(0.55 0.18 145), oklch(0.70 0.16 155));
+  }
+
+  .story-ring-navy {
+    background: linear-gradient(135deg, oklch(0.28 0.16 265), oklch(0.40 0.18 280));
+  }
+
+  /* Scrollbar hide */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safe area padding for bottom nav */
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Bottom nav safe area */
+.bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+}
