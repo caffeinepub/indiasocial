@@ -1,4 +1,12 @@
-import { ChevronLeft, ChevronRight, ImagePlus, Loader2, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ImagePlus,
+  Loader2,
+  Music2,
+  VolumeX,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -15,7 +23,11 @@ interface StoryViewItem {
   username: string;
   imageUrl: string;
   timestamp: bigint;
+  audioUrl?: string;
 }
+
+// Module-level map: imageBlobKey -> audioBlobUrl (frontend-only demo)
+const storyAudioMap = new Map<string, string>();
 
 function StoryViewer({
   stories,
@@ -28,11 +40,44 @@ function StoryViewer({
 }) {
   const [current, setCurrent] = useState(startIndex);
   const [progress, setProgress] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const STORY_DURATION = 5000;
 
   const story = stories[current];
 
+  // Audio play/pause effect when story changes
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (story?.audioUrl) {
+      audio.currentTime = 0;
+      audio.muted = isMuted;
+      audio.play().catch(() => {
+        // Autoplay might be blocked; silently ignore
+      });
+    } else {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+    // biome-ignore lint/correctness/useExhaustiveDependencies: isMuted is synced via a separate effect; including it here would restart audio on every mute toggle
+  }, [story?.audioUrl, isMuted]);
+
+  // Sync muted state
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
+
+  // Progress timer
   useEffect(() => {
     setProgress(0);
     const start = Date.now();
@@ -55,11 +100,19 @@ function StoryViewer({
     };
   }, [current, stories.length, onClose]);
 
+  const handleToggleMute = () => {
+    setIsMuted((prev) => !prev);
+  };
+
   return (
     <div
       data-ocid="story.view.panel"
       className="fixed inset-0 z-50 bg-black flex flex-col"
     >
+      {/* Hidden audio element */}
+      {/* biome-ignore lint/a11y/useMediaCaption: Background music for stories has no meaningful caption track */}
+      <audio ref={audioRef} src={story?.audioUrl} loop={false} />
+
       {/* Progress bars */}
       <div className="flex gap-1 px-4 pt-4 flex-shrink-0">
         {stories.map((_, storyBarIdx) => (
@@ -97,13 +150,34 @@ function StoryViewer({
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-1.5 rounded-full bg-black/30"
-        >
-          <X className="w-5 h-5 text-white" />
-        </button>
+
+        <div className="flex items-center gap-2">
+          {/* Mute/unmute button — only shown when story has audio */}
+          {story?.audioUrl && (
+            <button
+              type="button"
+              data-ocid="story.view.toggle"
+              onClick={handleToggleMute}
+              className="p-1.5 rounded-full bg-black/30 transition-opacity hover:bg-black/50"
+              aria-label={isMuted ? "Unmute music" : "Mute music"}
+            >
+              {isMuted ? (
+                <VolumeX className="w-5 h-5 text-white" />
+              ) : (
+                <Music2 className="w-5 h-5 text-white" />
+              )}
+            </button>
+          )}
+
+          <button
+            type="button"
+            data-ocid="story.view.close_button"
+            onClick={onClose}
+            className="p-1.5 rounded-full bg-black/30"
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+        </div>
       </div>
 
       {/* Story image */}
@@ -120,6 +194,14 @@ function StoryViewer({
             className="w-full h-full object-cover"
           />
         </AnimatePresence>
+
+        {/* Music playing indicator */}
+        {story?.audioUrl && !isMuted && (
+          <div className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5">
+            <Music2 className="w-3.5 h-3.5 text-white animate-pulse" />
+            <span className="text-white text-xs font-medium">Now Playing</span>
+          </div>
+        )}
 
         {/* Tap areas */}
         <button
@@ -171,7 +253,11 @@ export function StoriesPage() {
   );
   const [uploadFileState, setUploadFileState] = useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioBlobKey, setAudioBlobKey] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const { data: activeStories = [] } = useGetActiveStories();
   const createStory = useCreateStory();
@@ -189,6 +275,7 @@ export function StoriesPage() {
               ?.username || p.toString().slice(0, 8),
           imageUrl: POST_IMAGES[Number(s.id) % POST_IMAGES.length],
           timestamp: s.timestamp,
+          audioUrl: storyAudioMap.get(s.imageBlobKey) ?? undefined,
         })),
       }))
     : SAMPLE_STORIES.map((s) => ({
@@ -199,6 +286,7 @@ export function StoriesPage() {
             username: s.username,
             imageUrl: POST_IMAGES[s.imageIndex],
             timestamp: s.timestamp,
+            audioUrl: s.audioUrl,
           },
         ],
       }));
@@ -212,20 +300,49 @@ export function StoriesPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleAudioChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAudioFile(file);
+    // Upload audio to blob storage immediately so we have the key ready
+    try {
+      const key = await uploadBlob(file);
+      setAudioBlobKey(key);
+    } catch {
+      toast.error("Failed to upload audio. Try again.");
+      setAudioFile(null);
+    }
+  };
+
+  const handleRemoveAudio = () => {
+    setAudioFile(null);
+    setAudioBlobKey(null);
+    if (audioInputRef.current) audioInputRef.current.value = "";
+  };
+
   const handleCreateStory = async () => {
     if (!uploadFileState) return;
     try {
       const key = await uploadBlob(uploadFileState);
       await createStory.mutateAsync(key);
+      // Store audio mapping if audio was attached
+      if (audioBlobKey) {
+        storyAudioMap.set(key, audioBlobKey);
+      }
       toast.success("स्टोरी शेयर हो गई! 🌟 Story shared!");
       setUploadFileState(null);
       setUploadPreview(null);
+      setAudioFile(null);
+      setAudioBlobKey(null);
     } catch {
       toast.error("Failed to share story. Try again.");
     }
   };
 
   const isPending = createStory.isPending || isUploading;
+
+  const truncateFilename = (name: string, max = 20) =>
+    name.length > max ? `${name.slice(0, max)}…` : name;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -246,26 +363,75 @@ export function StoriesPage() {
           </h2>
           <div className="flex flex-col gap-3">
             {uploadPreview ? (
-              <div className="relative w-full aspect-video rounded-2xl overflow-hidden">
-                <img
-                  src={uploadPreview}
-                  alt="Story preview"
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUploadFileState(null);
-                    setUploadPreview(null);
-                  }}
-                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center"
-                >
-                  <X className="w-4 h-4 text-white" />
-                </button>
-                <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+              <div className="flex flex-col gap-3">
+                <div className="relative w-full aspect-video rounded-2xl overflow-hidden">
+                  <img
+                    src={uploadPreview}
+                    alt="Story preview"
+                    className="w-full h-full object-cover"
+                  />
                   <button
                     type="button"
-                    data-ocid="story.create.upload_button"
+                    onClick={() => {
+                      setUploadFileState(null);
+                      setUploadPreview(null);
+                      setAudioFile(null);
+                      setAudioBlobKey(null);
+                    }}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+
+                {/* Music / Audio section */}
+                <div className="flex flex-col gap-2">
+                  {audioFile ? (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-saffron/10 border border-saffron/30">
+                      <Music2 className="w-4 h-4 text-saffron flex-shrink-0" />
+                      <span className="text-sm text-foreground font-medium flex-1 truncate">
+                        {truncateFilename(audioFile.name)}
+                      </span>
+                      {isUploading && !uploadFileState ? (
+                        <Loader2 className="w-4 h-4 text-saffron animate-spin flex-shrink-0" />
+                      ) : (
+                        <button
+                          type="button"
+                          data-ocid="story.create.delete_button"
+                          onClick={handleRemoveAudio}
+                          className="w-5 h-5 rounded-full bg-saffron/20 flex items-center justify-center flex-shrink-0"
+                        >
+                          <X className="w-3 h-3 text-saffron" />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      data-ocid="story.create.upload_button"
+                      onClick={() => audioInputRef.current?.click()}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-saffron/40 hover:bg-saffron/5 transition-colors text-left"
+                    >
+                      <div className="w-7 h-7 rounded-full bg-saffron/15 flex items-center justify-center flex-shrink-0">
+                        <Music2 className="w-3.5 h-3.5 text-saffron" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-saffron">
+                          Add Music / गाना जोड़ें
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          MP3, WAV, or M4A
+                        </p>
+                      </div>
+                    </button>
+                  )}
+                </div>
+
+                {/* Share button */}
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    data-ocid="story.create.primary_button"
                     onClick={handleCreateStory}
                     disabled={isPending}
                     className="flex items-center gap-2 bg-saffron text-white px-6 py-2.5 rounded-full font-semibold text-sm shadow-saffron disabled:opacity-60"
@@ -273,7 +439,10 @@ export function StoriesPage() {
                     {isPending ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      "Share Story"
+                      <>
+                        {audioFile && <Music2 className="w-4 h-4" />}
+                        Share Story
+                      </>
                     )}
                   </button>
                 </div>
@@ -298,11 +467,20 @@ export function StoriesPage() {
                 </div>
               </button>
             )}
+
+            {/* Hidden file inputs */}
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
               onChange={handleFileChange}
+              className="hidden"
+            />
+            <input
+              ref={audioInputRef}
+              type="file"
+              accept="audio/*"
+              onChange={handleAudioChange}
               className="hidden"
             />
           </div>
@@ -322,6 +500,7 @@ export function StoriesPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05 }}
                 onClick={() => setViewingStories(group.stories)}
+                data-ocid={`story.item.${i + 1}`}
                 className="flex items-center gap-3 w-full p-3 hover:bg-muted rounded-xl transition-colors text-left"
               >
                 <div
@@ -347,11 +526,16 @@ export function StoriesPage() {
                   <p className="font-display font-semibold text-sm text-foreground">
                     {group.username}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {relativeTimeEn(group.stories[0].timestamp)} •{" "}
-                    {group.stories.length} story
-                    {group.stories.length > 1 ? "ies" : ""}
-                  </p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs text-muted-foreground">
+                      {relativeTimeEn(group.stories[0].timestamp)} •{" "}
+                      {group.stories.length} story
+                      {group.stories.length > 1 ? "ies" : ""}
+                    </p>
+                    {group.stories.some((s) => s.audioUrl) && (
+                      <Music2 className="w-3 h-3 text-saffron flex-shrink-0" />
+                    )}
+                  </div>
                 </div>
               </motion.button>
             ))}

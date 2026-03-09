@@ -1,48 +1,41 @@
 # IndiaSocial
 
 ## Current State
-New project. No existing code.
+IndiaSocial एक Instagram-जैसा सोशल मीडिया ऐप है जिसमें ये features हैं:
+- User profiles (username, bio, avatar)
+- Photo posts with captions, likes, comments
+- Stories (24-hour expiry) with music support
+- Follow/unfollow system
+- Feed (following users के posts)
+- Explore page (all posts grid)
+- Internet Identity login
+
+Backend में chat का कोई API नहीं है। Frontend में Chat page नहीं है।
 
 ## Requested Changes (Diff)
 
 ### Add
-- User authentication (login/signup via Internet Identity)
-- User profile: username, bio, avatar, post count, followers count, following count
-- Photo upload and sharing (posts with images and captions)
-- Stories UI (horizontal scrollable story circles at top of feed)
-- Feed: scrollable list of posts from followed users and all users
-- Follow/unfollow users
-- Like posts
-- Comments on posts
-- Explore page: grid view of all public posts
-- Profile page: user's own posts in a grid
-- Tricolor (Indian flag) design: saffron (#FF9933), white, green (#138808), navy blue (#000080) with Ashoka Chakra motif
+- Backend: `ChatMessage` type (id, sender, receiver, text, timestamp)
+- Backend: `sendMessage(receiver: Principal, text: Text)` - message भेजें
+- Backend: `getConversation(otherUser: Principal)` - दो users के बीच messages
+- Backend: `getConversations()` - caller की सभी conversations की list (latest message per user)
+- Backend: `markMessagesRead(otherUser: Principal)` - messages read करें
+- Backend: `getUnreadCount()` - unread messages की count
+- Frontend: `/chat` route - Chat list page (सभी conversations)
+- Frontend: `/chat/:userId` route - Individual conversation page with real-time polling
+- Frontend: Bottom navigation में chat icon
 
 ### Modify
-- N/A (new project)
+- Backend: `main.mo` में chat data structures और functions जोड़ें
+- Frontend: `App.tsx` में chat routes जोड़ें
+- Frontend: Bottom navigation में chat tab जोड़ें
 
 ### Remove
-- N/A (new project)
+- कुछ नहीं
 
 ## Implementation Plan
-
-### Backend (Motoko)
-- User profile management: create profile, get profile, update profile (username, bio, avatar blob key)
-- Posts: create post (image blob key, caption), get all posts, get posts by user, delete post
-- Social graph: follow user, unfollow user, get followers, get following, check if following
-- Likes: like post, unlike post, get likes count, check if liked
-- Comments: add comment, get comments for post
-- Stories: create story (image blob key), get stories (all users), stories expire logic (24h timestamp)
-- Feed: get feed posts (posts from followed users + own posts, sorted by time)
-
-### Frontend (React)
-- Bottom navigation bar: Home, Explore, Upload, Stories, Profile
-- Home feed: story row at top, then scrollable post cards with like/comment actions
-- Story viewer: full-screen overlay with progress bar
-- Post creation: image upload dialog with caption input
-- Explore page: 3-column photo grid
-- User profile page: avatar, stats, photo grid, follow/unfollow button
-- Comments sheet/modal per post
-- Login page: Internet Identity connect button
-- Tricolor design system: saffron/white/green palette, Ashoka Chakra accent in navy blue
-- Responsive, mobile-first layout
+1. `main.mo` में ChatMessage type और chat functions जोड़ें
+2. Frontend में `ChatListPage.tsx` बनाएं - सभी conversations दिखाए
+3. Frontend में `ChatConversationPage.tsx` बनाएं - individual chat with polling
+4. `App.tsx` में routes जोड़ें
+5. Navigation में chat icon/tab जोड़ें

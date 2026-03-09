@@ -1,22 +1,26 @@
 import { Toaster } from "@/components/ui/sonner";
+import type { Principal } from "@icp-sdk/core/principal";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { BottomNav } from "./components/BottomNav";
 import { SetupProfileModal } from "./components/SetupProfileModal";
 import { UploadPostModal } from "./components/UploadPostModal";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import { useGetCallerUserProfile } from "./hooks/useQueries";
+import { ChatConversationPage } from "./pages/ChatConversationPage";
+import { ChatListPage } from "./pages/ChatListPage";
 import { ExplorePage } from "./pages/ExplorePage";
 import { FeedPage } from "./pages/FeedPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { StoriesPage } from "./pages/StoriesPage";
 
-type Page = "feed" | "explore" | "upload" | "stories" | "profile";
+type Page = "feed" | "explore" | "upload" | "stories" | "chat" | "profile";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("feed");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [chatUserId, setChatUserId] = useState<Principal | null>(null);
 
   const { identity, clear, isInitializing } = useInternetIdentity();
   const isAuthenticated = !!identity;
@@ -46,7 +50,25 @@ export default function App() {
       setUploadOpen(true);
       return;
     }
+    // Reset chat user when navigating away from chat via nav
+    if (page !== "chat") {
+      setChatUserId(null);
+    }
     setCurrentPage(page);
+  };
+
+  const handleOpenConversation = (userId: Principal) => {
+    setChatUserId(userId);
+    setCurrentPage("chat");
+  };
+
+  const handleChatBack = () => {
+    if (chatUserId !== null) {
+      setChatUserId(null);
+      // Stay on chat list
+    } else {
+      setCurrentPage("feed");
+    }
   };
 
   // Show loading while initializing auth
@@ -83,8 +105,23 @@ export default function App() {
         return <ExplorePage />;
       case "stories":
         return <StoriesPage />;
+      case "chat":
+        if (chatUserId !== null) {
+          return (
+            <ChatConversationPage
+              otherUser={chatUserId}
+              onBack={handleChatBack}
+            />
+          );
+        }
+        return <ChatListPage onOpenConversation={handleOpenConversation} />;
       case "profile":
-        return <ProfilePage onLogout={handleLogout} />;
+        return (
+          <ProfilePage
+            onLogout={handleLogout}
+            onStartChat={handleOpenConversation}
+          />
+        );
       default:
         return <FeedPage />;
     }
@@ -95,8 +132,10 @@ export default function App() {
       {/* Main content */}
       <div className="max-w-lg mx-auto">{renderPage()}</div>
 
-      {/* Bottom navigation */}
-      <BottomNav current={currentPage} onNavigate={handleNavigate} />
+      {/* Bottom navigation — hide when in active conversation */}
+      {!(currentPage === "chat" && chatUserId !== null) && (
+        <BottomNav current={currentPage} onNavigate={handleNavigate} />
+      )}
 
       {/* Upload post modal */}
       <UploadPostModal open={uploadOpen} onClose={() => setUploadOpen(false)} />

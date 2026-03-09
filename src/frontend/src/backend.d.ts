@@ -26,6 +26,14 @@ export interface Story {
     author: Principal;
     timestamp: bigint;
 }
+export interface ChatMessage {
+    id: bigint;
+    text: string;
+    isRead: boolean;
+    sender: Principal;
+    timestamp: bigint;
+    receiver: Principal;
+}
 export interface UserProfile {
     bio: string;
     username: string;
@@ -50,15 +58,20 @@ export interface backendInterface {
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getComments(postId: bigint): Promise<Array<Comment>>;
+    getConversation(otherUser: Principal): Promise<Array<ChatMessage>>;
+    getConversations(): Promise<Array<[Principal, ChatMessage]>>;
     getFeed(): Promise<Array<Post>>;
     getFollowers(user: Principal): Promise<Array<Principal>>;
     getFollowing(user: Principal): Promise<Array<Principal>>;
     getPostLikeCount(postId: bigint): Promise<bigint>;
     getPostsByUser(user: Principal): Promise<Array<Post>>;
+    getUnreadCount(): Promise<bigint>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     isFollowing(target: Principal): Promise<boolean>;
     likePost(postId: bigint): Promise<boolean>;
+    markMessagesRead(otherUser: Principal): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    sendMessage(receiver: Principal, text: string): Promise<bigint>;
     unfollowUser(target: Principal): Promise<void>;
 }

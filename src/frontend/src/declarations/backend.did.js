@@ -48,6 +48,14 @@ export const Comment = IDL.Record({
   'timestamp' : IDL.Int,
   'postId' : IDL.Nat,
 });
+export const ChatMessage = IDL.Record({
+  'id' : IDL.Nat,
+  'text' : IDL.Text,
+  'isRead' : IDL.Bool,
+  'sender' : IDL.Principal,
+  'timestamp' : IDL.Int,
+  'receiver' : IDL.Principal,
+});
 
 export const idlService = IDL.Service({
   '_caffeineStorageBlobIsLive' : IDL.Func(
@@ -94,6 +102,16 @@ export const idlService = IDL.Service({
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getComments' : IDL.Func([IDL.Nat], [IDL.Vec(Comment)], ['query']),
+  'getConversation' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Vec(ChatMessage)],
+      ['query'],
+    ),
+  'getConversations' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Principal, ChatMessage))],
+      ['query'],
+    ),
   'getFeed' : IDL.Func([], [IDL.Vec(Post)], ['query']),
   'getFollowers' : IDL.Func(
       [IDL.Principal],
@@ -107,6 +125,7 @@ export const idlService = IDL.Service({
     ),
   'getPostLikeCount' : IDL.Func([IDL.Nat], [IDL.Nat], ['query']),
   'getPostsByUser' : IDL.Func([IDL.Principal], [IDL.Vec(Post)], ['query']),
+  'getUnreadCount' : IDL.Func([], [IDL.Nat], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
@@ -115,7 +134,9 @@ export const idlService = IDL.Service({
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isFollowing' : IDL.Func([IDL.Principal], [IDL.Bool], ['query']),
   'likePost' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+  'markMessagesRead' : IDL.Func([IDL.Principal], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'sendMessage' : IDL.Func([IDL.Principal, IDL.Text], [IDL.Nat], []),
   'unfollowUser' : IDL.Func([IDL.Principal], [], []),
 });
 
@@ -161,6 +182,14 @@ export const idlFactory = ({ IDL }) => {
     'author' : IDL.Principal,
     'timestamp' : IDL.Int,
     'postId' : IDL.Nat,
+  });
+  const ChatMessage = IDL.Record({
+    'id' : IDL.Nat,
+    'text' : IDL.Text,
+    'isRead' : IDL.Bool,
+    'sender' : IDL.Principal,
+    'timestamp' : IDL.Int,
+    'receiver' : IDL.Principal,
   });
   
   return IDL.Service({
@@ -212,6 +241,16 @@ export const idlFactory = ({ IDL }) => {
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getComments' : IDL.Func([IDL.Nat], [IDL.Vec(Comment)], ['query']),
+    'getConversation' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Vec(ChatMessage)],
+        ['query'],
+      ),
+    'getConversations' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Principal, ChatMessage))],
+        ['query'],
+      ),
     'getFeed' : IDL.Func([], [IDL.Vec(Post)], ['query']),
     'getFollowers' : IDL.Func(
         [IDL.Principal],
@@ -225,6 +264,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getPostLikeCount' : IDL.Func([IDL.Nat], [IDL.Nat], ['query']),
     'getPostsByUser' : IDL.Func([IDL.Principal], [IDL.Vec(Post)], ['query']),
+    'getUnreadCount' : IDL.Func([], [IDL.Nat], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],
@@ -233,7 +273,9 @@ export const idlFactory = ({ IDL }) => {
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isFollowing' : IDL.Func([IDL.Principal], [IDL.Bool], ['query']),
     'likePost' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+    'markMessagesRead' : IDL.Func([IDL.Principal], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'sendMessage' : IDL.Func([IDL.Principal, IDL.Text], [IDL.Nat], []),
     'unfollowUser' : IDL.Func([IDL.Principal], [], []),
   });
 };

@@ -128,12 +128,14 @@ export const SAMPLE_STORIES: Array<{
   username: string;
   imageIndex: number;
   timestamp: bigint;
+  audioUrl?: string;
 }> = [
   {
     principalStr: "priya.india",
     username: "priya_sharma",
     imageIndex: 0,
     timestamp: NOW_NS - HOUR_NS * BigInt(1),
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
   },
   {
     principalStr: "rahul.india",
@@ -146,11 +148,13 @@ export const SAMPLE_STORIES: Array<{
     username: "ananya_arts",
     imageIndex: 2,
     timestamp: NOW_NS - HOUR_NS * BigInt(6),
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
   },
   {
     principalStr: "vikram.india",
     username: "vikram_travels",
     imageIndex: 4,
     timestamp: NOW_NS - HOUR_NS * BigInt(10),
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
   },
 ];

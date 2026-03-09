@@ -1,5 +1,5 @@
 import { Principal } from "@dfinity/principal";
-import { Edit2, Grid, Loader2, Settings } from "lucide-react";
+import { Edit2, Grid, Loader2, MessageCircle, Settings } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import type { Post } from "../backend.d";
@@ -28,9 +28,14 @@ import {
 interface ProfilePageProps {
   userId?: string; // Principal string for viewing another user's profile
   onLogout?: () => void;
+  onStartChat?: (userId: Principal) => void;
 }
 
-export function ProfilePage({ userId, onLogout }: ProfilePageProps) {
+export function ProfilePage({
+  userId,
+  onLogout,
+  onStartChat,
+}: ProfilePageProps) {
   const { identity } = useInternetIdentity();
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -199,29 +204,42 @@ export function ProfilePage({ userId, onLogout }: ProfilePageProps) {
                     </button>
                   </>
                 ) : (
-                  <button
-                    type="button"
-                    data-ocid={
-                      isFollowingTarget
-                        ? "profile.unfollow.button"
-                        : "profile.follow.button"
-                    }
-                    onClick={handleFollowToggle}
-                    disabled={followUser.isPending || unfollowUser.isPending}
-                    className={`flex-1 flex items-center justify-center gap-1.5 font-display font-semibold text-sm py-2 rounded-lg transition-all ${
-                      isFollowingTarget
-                        ? "bg-muted hover:bg-muted/80 text-foreground border border-border"
-                        : "bg-saffron hover:bg-saffron-dark text-white shadow-saffron"
-                    }`}
-                  >
-                    {followUser.isPending || unfollowUser.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : isFollowingTarget ? (
-                      "Following"
-                    ) : (
-                      "Follow"
+                  <>
+                    <button
+                      type="button"
+                      data-ocid={
+                        isFollowingTarget
+                          ? "profile.unfollow.button"
+                          : "profile.follow.button"
+                      }
+                      onClick={handleFollowToggle}
+                      disabled={followUser.isPending || unfollowUser.isPending}
+                      className={`flex-1 flex items-center justify-center gap-1.5 font-display font-semibold text-sm py-2 rounded-lg transition-all ${
+                        isFollowingTarget
+                          ? "bg-muted hover:bg-muted/80 text-foreground border border-border"
+                          : "bg-saffron hover:bg-saffron-dark text-white shadow-saffron"
+                      }`}
+                    >
+                      {followUser.isPending || unfollowUser.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : isFollowingTarget ? (
+                        "Following"
+                      ) : (
+                        "Follow"
+                      )}
+                    </button>
+                    {onStartChat && targetPrincipal && (
+                      <button
+                        type="button"
+                        data-ocid="profile.message.button"
+                        onClick={() => onStartChat(targetPrincipal)}
+                        className="flex items-center justify-center gap-1.5 bg-muted hover:bg-muted/80 text-foreground font-semibold text-sm py-2 px-4 rounded-lg transition-colors border border-border"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Message
+                      </button>
                     )}
-                  </button>
+                  </>
                 )}
               </div>
             </div>

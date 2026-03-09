@@ -1,6 +1,12 @@
 import type { Principal } from "@icp-sdk/core/principal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Comment, Post, Story, UserProfile } from "../backend.d";
+import type {
+  ChatMessage,
+  Comment,
+  Post,
+  Story,
+  UserProfile,
+} from "../backend.d";
 import { useActor } from "./useActor";
 import { useInternetIdentity } from "./useInternetIdentity";
 
@@ -406,6 +412,119 @@ export function useCreateStory() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["activeStories"] });
+    },
+  });
+}
+
+// ─── Chat ───────────────────────────────────────────────────────────────────
+
+export function useGetConversations() {
+  const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<Array<[Principal, ChatMessage]>>({
+    queryKey: ["conversations", identity?.getPrincipal().toString()],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getConversations();
+    },
+    enabled: !!actor && !actorFetching && !!identity,
+    refetchInterval: 5000,
+  });
+}
+
+export function useGetConversation(otherUser: Principal | null) {
+  const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<ChatMessage[]>({
+    queryKey: [
+      "conversation",
+      identity?.getPrincipal().toString(),
+      otherUser?.toString(),
+    ],
+    queryFn: async () => {
+      if (!actor || !otherUser) return [];
+      const msgs = await actor.getConversation(otherUser);
+      return [...msgs].sort(
+        (a, b) => Number(a.timestamp) - Number(b.timestamp),
+      );
+    },
+    enabled: !!actor && !actorFetching && !!otherUser && !!identity,
+    refetchInterval: 3000,
+  });
+}
+
+export function useGetUnreadCount() {
+  const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<bigint>({
+    queryKey: ["unreadCount", identity?.getPrincipal().toString()],
+    queryFn: async () => {
+      if (!actor) return BigInt(0);
+      return actor.getUnreadCount();
+    },
+    enabled: !!actor && !actorFetching && !!identity,
+    refetchInterval: 10000,
+  });
+}
+
+export function useSendMessage() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  const { identity } = useInternetIdentity();
+
+  return useMutation({
+    mutationFn: async ({
+      receiver,
+      text,
+    }: { receiver: Principal; text: string }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.sendMessage(receiver, text);
+    },
+    onSuccess: (_, { receiver }) => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          "conversation",
+          identity?.getPrincipal().toString(),
+          receiver.toString(),
+        ],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["conversations", identity?.getPrincipal().toString()],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["unreadCount", identity?.getPrincipal().toString()],
+      });
+    },
+  });
+}
+
+export function useMarkMessagesRead() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  const { identity } = useInternetIdentity();
+
+  return useMutation({
+    mutationFn: async (otherUser: Principal) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.markMessagesRead(otherUser);
+    },
+    onSuccess: (_, otherUser) => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          "conversation",
+          identity?.getPrincipal().toString(),
+          otherUser.toString(),
+        ],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["conversations", identity?.getPrincipal().toString()],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["unreadCount", identity?.getPrincipal().toString()],
+      });
     },
   });
 }

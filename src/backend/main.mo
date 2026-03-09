@@ -9,11 +9,14 @@ import Principal "mo:core/Principal";
 import Iter "mo:core/Iter";
 import Set "mo:core/Set";
 import Int "mo:core/Int";
+import Nat "mo:core/Nat";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
@@ -47,8 +50,18 @@ actor {
     timestamp : Int;
   };
 
+  type ChatMessage = {
+    id : Nat;
+    sender : Principal;
+    receiver : Principal;
+    text : Text;
+    timestamp : Int;
+    isRead : Bool;
+  };
+
   var nextPostId = 0;
   var nextStoryId = 0;
+  var nextMessageId = 0;
 
   let userProfiles = Map.empty<Principal, UserProfile>();
   let posts = Map.empty<Nat, Post>();
@@ -57,9 +70,14 @@ actor {
   let following = Map.empty<Principal, Set.Set<Principal>>();
   let postLikes = Map.empty<Nat, Set.Set<Principal>>();
   let stories = Map.empty<Principal, List.List<Story>>();
+  let messages = List.empty<ChatMessage>();
 
   func comparePostsByTimestamp(p1 : Post, p2 : Post) : Order.Order {
     Int.compare(p2.timestamp, p1.timestamp); // Newest first
+  };
+
+  func compareMessagesByTimestamp(m1 : ChatMessage, m2 : ChatMessage) : Order.Order {
+    Int.compare(m1.timestamp, m2.timestamp); // Oldest first
   };
 
   // User Profiles
@@ -357,5 +375,107 @@ actor {
     );
 
     feedPosts.sort(comparePostsByTimestamp);
+  };
+
+  // Chat/Direct Messaging
+  public shared ({ caller }) func sendMessage(receiver : Principal, text : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can send messages");
+    };
+
+    let message : ChatMessage = {
+      id = nextMessageId;
+      sender = caller;
+      receiver;
+      text;
+      timestamp = Time.now();
+      isRead = false;
+    };
+
+    messages.add(message);
+    nextMessageId += 1;
+    message.id;
+  };
+
+  public query ({ caller }) func getConversation(otherUser : Principal) : async [ChatMessage] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view conversations");
+    };
+
+    let filtered = messages.toArray().filter(
+      func(m) {
+        (m.sender == caller and m.receiver == otherUser) or (m.sender == otherUser and m.receiver == caller)
+      }
+    );
+
+    filtered.sort(compareMessagesByTimestamp);
+  };
+
+  public query ({ caller }) func getConversations() : async [(Principal, ChatMessage)] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view conversations");
+    };
+
+    // Find latest message per unique conversation partner (where caller is sender or receiver)
+    let conversationMap = Map.empty<Principal, ChatMessage>();
+
+    for (message in messages.toArray().values()) {
+      // Only process messages where caller is involved
+      if (message.sender == caller or message.receiver == caller) {
+        let partner = if (message.sender == caller) {
+          message.receiver;
+        } else {
+          message.sender;
+        };
+
+        // Update with latest message for this partner
+        switch (conversationMap.get(partner)) {
+          case (null) {
+            conversationMap.add(partner, message);
+          };
+          case (?existingMessage) {
+            if (message.timestamp > existingMessage.timestamp) {
+              conversationMap.add(partner, message);
+            };
+          };
+        };
+      };
+    };
+
+    conversationMap.entries().toArray();
+  };
+
+  public query ({ caller }) func getUnreadCount() : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view unread counts");
+    };
+
+    let unreadMessages = messages.toArray().filter(
+      func(m) { m.receiver == caller and not m.isRead }
+    );
+    unreadMessages.size();
+  };
+
+  public shared ({ caller }) func markMessagesRead(otherUser : Principal) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can mark messages as read");
+    };
+
+    let updatedMessages = List.empty<ChatMessage>();
+
+    for (message in messages.values()) {
+      if (message.sender == otherUser and message.receiver == caller and not message.isRead) {
+        let updated = {
+          message with
+          isRead = true;
+        };
+        updatedMessages.add(updated);
+      } else {
+        updatedMessages.add(message);
+      };
+    };
+
+    messages.clear();
+    messages.addAll(updatedMessages.values());
   };
 };

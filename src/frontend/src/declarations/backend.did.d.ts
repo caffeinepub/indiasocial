@@ -10,6 +10,14 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface ChatMessage {
+  'id' : bigint,
+  'text' : string,
+  'isRead' : boolean,
+  'sender' : Principal,
+  'timestamp' : bigint,
+  'receiver' : Principal,
+}
 export interface Comment {
   'text' : string,
   'author' : Principal,
@@ -78,16 +86,21 @@ export interface _SERVICE {
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getComments' : ActorMethod<[bigint], Array<Comment>>,
+  'getConversation' : ActorMethod<[Principal], Array<ChatMessage>>,
+  'getConversations' : ActorMethod<[], Array<[Principal, ChatMessage]>>,
   'getFeed' : ActorMethod<[], Array<Post>>,
   'getFollowers' : ActorMethod<[Principal], Array<Principal>>,
   'getFollowing' : ActorMethod<[Principal], Array<Principal>>,
   'getPostLikeCount' : ActorMethod<[bigint], bigint>,
   'getPostsByUser' : ActorMethod<[Principal], Array<Post>>,
+  'getUnreadCount' : ActorMethod<[], bigint>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'isFollowing' : ActorMethod<[Principal], boolean>,
   'likePost' : ActorMethod<[bigint], boolean>,
+  'markMessagesRead' : ActorMethod<[Principal], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'sendMessage' : ActorMethod<[Principal, string], bigint>,
   'unfollowUser' : ActorMethod<[Principal], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
